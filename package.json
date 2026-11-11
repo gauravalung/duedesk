@@ -1,0 +1,8 @@
+{
+  "name": "duedesk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DueDesk: invoices and collections run by your own Claude over MCP. No AI inside.",
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Invoice</title><link rel="stylesheet" href="/style.css">
+<style>@media print{.noprint{display:none}body{background:#fff}.card{border:0}}</style></head><body>
+<div class="wrap" style="max-width:820px"><div class="card" id="inv" style="padding:32px">Loading…</div>
+<p class="small muted noprint" style="text-align:center">Powered by DueDesk · <a href="#" onclick="print();return false">Download / print</a></p></div>
+<script>
+const esc=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr=(n)=>'₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fd=(d)=>new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+const pid=new URLSearchParams(location.search).get('pid')||location.pathname.split('/').pop();
+fetch('/api/public?pid='+encodeURIComponent(pid)).then(r=>r.json()).then(({invoice:i,business:b,error})=>{
+ if(error){document.getElementById('inv').textContent='Invoice not found.';return}
+ document.title=i.number+' · '+b.name;
+ const upi=b.upi&&i.balance>0?`upi://pay?pa=${encodeURIComponent(b.upi)}&pn=${encodeURIComponent(b.name)}&am=${i.balance.toFixed(2)}&cu=INR&tn=${encodeURIComponent(i.number)}`:'';
+ document.getElementById('inv').innerHTML=`
+ <div class="row"><div><div class="logo">${esc(b.name)}</div><div class="small muted">${esc(b.address)}${b.gstin?'<br>GSTIN '+esc(b.gstin):''}${b.email?'<br>'+esc(b.email):''}</div></div>
+ <div class="right" style="text-align:right"><div style="font-size:26px;font-weight:800">INVOICE</div><div class="small">${i.number}</div><div style="margin-top:6px"><span class="pill s-${i.status}">${i.status.replace('-',' ')}</span></div></div></div>
+ <div class="row" style="margin:26px 0"><div><div class="small muted">Billed to</div><b>${esc(i.client.name)}</b><div class="small muted">${esc(i.client.email)}</div></div>
+ <div class="right small" style="text-align:right">Issued ${fd(i.issueDate)}<br><b>Due ${fd(i.dueDate)}</b></div></div>
+ <table><tr><th>Description</th><th>Qty</th><th>Rate</th><th style="text-align:right">Amount</th></tr>
+ ${i.items.map(it=>`<tr><td>${esc(it.description)}</td><td>${it.qty}</td><td>${inr(it.rate)}</td><td style="text-align:right">${inr(it.qty*it.rate)}</td></tr>`).join('')}</table>
+ <div style="margin-left:auto;max-width:300px;margin-top:14px" class="small">
+ <div class="row"><span>Subtotal</span><span class="right">${inr(i.subtotal)}</span></div>
+ ${i.discount?`<div class="row"><span>Discount</span><span class="right">−${inr(i.discount)}</span></div>`:''}
+ <div class="row"><span>GST ${i.gstPercent}%${i.gstPercent?` (CGST ${i.gstPercent/2}% + SGST ${i.gstPercent/2}%)`:''}</span><span class="right">${inr(i.gst)}</span></div>
+ <div class="row" style="font-size:17px;font-weight:800;margin-top:6px"><span>Total</span><span class="right">${inr(i.total)}</span></div>
+ ${i.paid?`<div class="row"><span>Paid</span><span class="right">−${inr(i.paid)}</span></div><div class="row" style="font-weight:800"><span>Balance due</span><span class="right">${inr(i.balance)}</span></div>`:''}</div>
+ ${i.notes?`<p class="small" style="margin-top:20px"><b>Notes:</b> ${esc(i.notes)}</p>`:''}
+ ${upi?`<div class="row noprint" style="margin-top:24px;gap:18px"><img alt="UPI QR" width="140" height="140" src="https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(upi)}"><div><b>Pay ${inr(i.balance)} by UPI</b><div class="small muted">Scan with any UPI app, or pay to ${esc(b.upi)}</div><a class="btn" style="margin-top:10px" href="${upi}">Pay with UPI app</a></div></div>`:''}
+ ${i.status==='paid'?'<p style="margin-top:20px;color:var(--ok);font-weight:700">Paid in full. Thank you!</p>':''}`;
+});
+</script></body></html>
